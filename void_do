@@ -35,19 +35,34 @@ void do_tstb();
 void do_jsr();
 void do_rts();
 
-typedef struct  {
-    word mask;
-    word opcode;
-    char * name;
-    void (*do_func)(void);
-} Command;
-Command cmd[] = {
-        {0170000, 0010000, "mov", do_mov},
-        {0170000, 0060000, "add", do_add},
-}
 typedef struct {
-    word val;
-    word adr;
+	word mask;
+	word opcode;
+	char * name;
+	void (*do_func)(void);
+	char params;
+} Command;
 
-} Arg;
-Arg ss, dd;
+typedef struct {
+	word val;
+	word adr;
+} Argument;
+
+void run();
+void trace(const char* format, ...);
+
+#define NO_PARAMS 0
+#define HAS_DD 1
+#define HAS_SS 2
+#define HAS_NN 4
+#define HAS_R 8
+#define HAS_XX 16
+#define HAS_RL 32  // when register last 3 bytes
+
+void print_reg();
+
+void set_NZ();
+void set_C();
+
+#define ostat 0177564  // display status register
+#define odata 0177566  // display data register
