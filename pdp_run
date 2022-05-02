@@ -45,8 +45,6 @@ void run() {
 					r = get_r_last(w);
 				}
 				cmd[i].do_func();
-				//trace("\n");
-				//print_reg();
 				break;
 			}
 		}
@@ -130,7 +128,7 @@ Argument get_mr(word w) {
 
 Argument get_nn(word w) { // array number
 	Argument res;
-	int n = w & 077; // n number
+	int n = w & 077; 
 	res.val = n;
 	return res;
 }
