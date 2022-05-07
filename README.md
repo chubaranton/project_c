@@ -8,9 +8,7 @@ PDP-11
 Для написания программы я разделил весь свой код на несколько файлом.Таких как:
 
     main.c
-    pdp_load.c
-    pdp_rw.c
     pdp_run.c
-    pdp.c
+    pdp.h
     do_void
 

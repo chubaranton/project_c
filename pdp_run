@@ -1,161 +1,191 @@
-#include "pdp.h"
+#include "pdp11.h"
 #include <stdio.h>
-#include <stdlib.h>
+#include <string.h>
 
-extern Command cmd[];
-extern word reg[8];
+extern word reg[];
+extern byte mem[];
+extern Commands comms[];
+extern Args ss, dd, nn, r, b_flag, xx;
 
-Argument ss, dd, nn, r, xx;
+Args get_ss_dd(word w)     // get mode && arg
+{
+    Args res;
+    int r = w & 7;      // reg number
+    int mode = (w >> 3) & 7;
+    //printf("\n\nGET:\ninput: %o\nr: %o\n", w, r);
+    //printf("mode: %o\n", mode);
+    switch (mode) {
+        case 0:             // Rn
+            res.adr = r;
+            res.val = reg[r];
+            trace("R%o ", r);
+            break;
+        case 1:             //  (Rn)
+            res.adr = reg[r];
+            res.val = w_read(res.adr);
+            trace("(R%d) ", r);
+            break;
+        case 2:
+            res.adr = reg[r];
+            res.val = w_read(res.adr);      //  #nn
+            if (b_flag.val && r != 7 && r != 6)
+                reg[r] += 1;
+            else
+                reg[r] += 2;
+            if (r == 7)
+                trace("#%o ", res.val);
+            else
+                trace("(R%d)+ ", r);
+            break;
+        case 3:
+            res.adr = reg[r];
+            res.adr = w_read(res.adr);      //  @(Rn)+
+            word tmp_for_trace = res.adr;
+            res.val = w_read(res.adr);
+            reg[r] += 2;
+            if (r == 7)
+                trace("@#%o ", tmp_for_trace);
+            else
+                trace("@(R%o)+ ", r);
+            break;
+        case 4:
+            if (b_flag.val && r != 7 && r != 6)
+                reg[r] -= 1;
+            else
+                reg[r] -= 2;
+            res.adr = reg[r];
+            res.val = w_read(res.adr);      //  -(Rn)
+            trace("-(R%o) ", r);
+            break;
+        case 5:
+            reg[r] -= 2;
+            res.adr = reg[r];
+            res.adr = w_read(res.adr);      //  @-(Rn)
+            res.val = w_read(res.adr);
+            trace("@-(R%o) ", r);
+            break;
+        case 6: {
+            word shift = w_read(pc);
+            pc += 2;
+            res.adr = reg[r] + shift;
+            res.val = w_read(res.adr);
+            if (r == 7)
+                trace("%o ", shift);
+            else
+                trace("%o(R%o) ", shift, r);
+            break;
+        }
+        case 7: {
+            word shift = w_read(pc);
+            pc += 2;
+            res.adr = shift + reg[r];
+            res.adr = w_read(res.adr);
+            res.val = w_read(res.adr);
+            if (r == 7)
+                trace("@%o ", shift);
+            else
+                trace("@%o(R%o) ", shift, r);
+            break;
+        }
 
-Argument get_mr(word w);
-Argument get_nn(word w);
-Argument get_r(word w);
-Argument get_xx(word w);
-Argument get_r_last(word w);
-
-int is_byte;
-
-void run() {
-	pc = 01000;
-	while(1) {
-		word w = w_read(pc);
-		trace("%06o %06o: ", pc, w);
-		pc += 2;
-		for (int i = 0; 1; ++i) {
-			if ( (w & cmd[i].mask) == cmd[i].opcode) {
-				trace(cmd[i].name);
-				trace(" ");
-				is_byte = w & 0100000;
-				if (cmd[i].params & HAS_SS) {
-					ss = get_mr(w >> 6);
-				}
-				if (cmd[i].params & HAS_DD) {
-					dd = get_mr(w);
-				}
-				if (cmd[i].params & HAS_NN) {
-					nn = get_nn(w);
-				}
-				if (cmd[i].params & HAS_R) {
-					r = get_r(w);
-				}
-				if (cmd[i].params & HAS_XX) {
-					xx = get_xx(w);
-				}
-				if (cmd[i].params & HAS_RL) {
-					r = get_r_last(w);
-				}
-				cmd[i].do_func();
-				break;
-			}
-		}
-		trace("\n");
-	}
+    }
+    return res;
 }
 
-Argument get_mr(word w) {
-	Argument res;
-	int r = w & 7; // register
-	int mode = (w >> 3) & 7;
-	int x;
-	switch(mode) {
-		case 0:    // R3
-			res.adr = r;
-			res.val = reg[r];
-			trace("R%o ", r);
-			break;
-		case 1:    // (R3)
-			res.adr = reg[r];
-			if (is_byte && r != 6 && r !=7)
-				res.val = b_read(res.adr);
-			else 
-				res.val = w_read(res.adr);   // to do b_read
-			trace("(R%o) ", r);
-			break;
-		case 2:    // (R3)+
-			res.adr = reg[r];
-			if (is_byte && r != 6 && r !=7) {
-				res.val = b_read(res.adr);  
-				reg[r] += 1;  
-			}
-			else {
-				res.val = w_read(res.adr);   // to do b_read
-				reg[r] += 2;			// to do +1
-			}
-			if (r == 7)
-				trace("#%06o ", res.val);
-			else
-				trace("(R%o)+ ", r);
-			break;
-		case 3:   //  @(R3)+
-			res.adr = reg[r];
-			res.adr = w_read(res.adr);
-			res.val = w_read(res.adr);
-			reg[r] += 2;
-			break;
-		case 4:   //  -(R3)
-			if (is_byte && r != 6 && r !=7) {
-				reg[r] -= 1;
-				res.adr = reg[r];
-				res.val = b_read(res.adr);
-			}
-			else {
-				reg[r] -= 2;
-				res.adr = reg[r];
-				res.val = w_read(res.adr);
-			}
-			if (r == 7)
-				trace("#%06o ", res.val);
-			else
-				trace("-(R%o) ", r);
-			break;
-		case 6:   // x(R3)
-			x = w_read(pc);
-			pc += 2;
-			res.adr = x + reg[r];
-			res.val = w_read(res.adr);
-			if (r == 7)
-				trace("%06o ", res.adr);
-			else
-				trace("%o(R%o) ", x, r);
-			break;
-		default:
-			fprintf(stderr, 
-				"Mode %o NOT IMPLEMENTED YET!\n", mode);
-			exit(1);
-	}
-	return res;
+void get_nn(word w)
+{
+    nn.val = w & 077;
 }
 
-Argument get_nn(word w) { // array number
-	Argument res;
-	int n = w & 077; 
-	res.val = n;
-	return res;
+void get_r(word w, Commands com)
+{
+    if (!strcmp(com.name, "rts"))
+        r.val = w & 7;
+    else
+        r.val = (w >> 6) & 07;
 }
 
-Argument get_r(word w) {  //reg
-	Argument res;
-	int r = (w >> 6) & 7; // register
-	res.adr = r;
-	trace("R%o ", r);
-	return res;
+void get_b(word w)
+{
+    b_flag.val = (w >> 15) & 7;
 }
 
-Argument get_xx(word w) {  // xx
-	Argument res;
-	int val;
-	if ((w & 0x00FF) >> 7 == 0)
-		val = w & 0x00FF;
-	else
-		val = (w & 0x00FF) - 0400;
-	res.val = val;
-	return res;
+void get_xx(word w)
+{
+    xx.val = w & 0377;
 }
 
-Argument get_r_last(word w) {  //reg
-	Argument res;
-	int r = w & 7; // register
-	res.adr = r;
-	trace("R%o ", r);
-	return res;
+int need_ss(Commands com)
+{
+    return (com.params & 7);
+}
+
+int need_dd(Commands com)
+{
+    return ((com.params >> 3) & 1);
+}
+
+int need_b(Commands com)
+{
+    return ((com.params >> 6) & 1);
+}
+
+int need_nn(Commands com)
+{
+    return ((com.params >> 9) & 1);
+}
+
+int need_r(Commands com)
+{
+    return ((com.params >> 12) & 1);
+}
+
+int need_xx(Commands com)
+{
+    return ((com.params >> 15) & 1);
+}
+
+void run()
+{
+    trace("----------run----------\n");
+    pc = 01000;
+    w_write(ostat, 0x0000 + 0x80);
+    while (1) {
+        word w = w_read(pc);
+        trace("%06o %06o: ", pc, w);
+        pc += 2;
+        int i = 0;
+        while (1) {
+            Commands com = comms[i];
+            if ((w & com.mask) == com.opcode) {
+                trace(com.name);
+                if (need_b(com)) {
+                    get_b(w);
+                    if (b_flag.val)
+                        trace("b");
+                }
+                trace(" ");
+                if (need_ss(com)) {
+                    ss = get_ss_dd(w >> 6);
+                }
+                if (need_dd(com)) {
+                    dd = get_ss_dd(w);
+                }
+
+                if (need_r(com))
+                    get_r(w, com);
+                if (need_nn(com))
+                    get_nn(w);
+                if (need_xx(com))
+                    get_xx(w);
+
+                com.func();
+                trace("\n");
+                print_reg();
+                trace("\n");
+                break;
+            }
+            i++;
+        }
+    }
 }
