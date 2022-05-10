@@ -12,8 +12,6 @@ Args get_ss_dd(word w)     // get mode && arg
     Args res;
     int r = w & 7;      // reg number
     int mode = (w >> 3) & 7;
-    //printf("\n\nGET:\ninput: %o\nr: %o\n", w, r);
-    //printf("mode: %o\n", mode);
     switch (mode) {
         case 0:             // Rn
             res.adr = r;
@@ -189,3 +187,4 @@ void run()
         }
     }
 }
+

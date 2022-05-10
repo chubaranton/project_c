@@ -1,3 +1,4 @@
+#include "pdp11.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -26,6 +27,7 @@ void set_ALL(word val2, int c)
     V_flag = 0;
     C_flag = c;
 
+    
 }
 
 void mov()
@@ -255,3 +257,4 @@ Commands comms[] = {
         {0077700, 0006100, "rol",     rol,     0000110},
         {0000000, 0000000, "unknown", unknown, 0000000}
 };
+
